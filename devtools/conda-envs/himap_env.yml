@@ -17,6 +17,7 @@ dependencies:
   - r-reshape2
   - r-cowplot
   - r-ggpubr
+  - r-profvis
   - kneed
   - pip:
     - git+https://github.com/pitmanme/HiMap_dev.git@bbc7303cc3de26d03c0775e99e8a05a71c3e50bc
