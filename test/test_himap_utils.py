@@ -1,9 +1,7 @@
 import pkg_resources
-
 from himap import utils
 import logging
 import numpy as np
-
 import pytest
 
 '''
