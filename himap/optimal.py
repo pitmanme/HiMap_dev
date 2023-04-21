@@ -6,7 +6,6 @@
 
 HiMap
 =====
-
 Alchemical free energy calculations hold increasing promise as an aid to drug
 discovery efforts. However, applications of these techniques in discovery
 projects have been relatively few, partly because of the difficulty of planning
@@ -15,7 +14,6 @@ automated algorithm to optimize efficient relative free energy calculations betw
 potential ligands within a substantial of compounds. The optimal module
 generates A and D optimal graphs to reduce uncertainty in FE results for
 RBFE calculations.
-
 
 """
 
@@ -89,6 +87,8 @@ def df_gen(np_arr, **kwargs):
             # Cleave the 'ID' entry
             mol_arr = mol_arr_pre[1:]
         else:
+            # Clean ID list if needed, func in utils.
+            himap.clean_ID_list(ID_list)
             mol_arr = np.array(list(ID_list))
     # If similarity was not read in.
     if db_mol is not None:
@@ -104,6 +104,8 @@ def df_gen(np_arr, **kwargs):
             # Cleave the 'ID' entry
             mol_arr = mol_arr_pre[1:]
         else:
+            # Clean ID list if needed, func in utils.
+            himap.clean_ID_list(ID_list)
             mol_arr = np.array(list(ID_list))
         
     # Create the pandas DataFrame to pass to R.
@@ -191,6 +193,9 @@ def Optimize(np_arr, **kwargs):
                         The edge number requested must be in the range of [min, max].
                         If less than min, will be set to min. If greater than max,
                         will be set to max.
+            random_seed = random seed to make optimization nondeterministic.
+                        This is primarily for testing. Default is NULL.
+                        Otherwise takes integer values.
         
         Returns:
             Optimal graph outputs.
@@ -198,13 +203,14 @@ def Optimize(np_arr, **kwargs):
         Example usage:
         himap.Optimize(strict_numpy, db_mol, ref_lig = 'lig_1')
     '''
-    # Set and get optional input arguments. Defaults:
+    # Set and get optional input arguments. 
     # A/D Optimization, no reference ligand given.
     db_mol = kwargs.get('db_mol', None)
     optim_types = kwargs.get('optim_types', ['A', 'D'])
     ref_lig = kwargs.get('ref_lig', None)
     ID_list = kwargs.get('ID_list', None)
     num_edges = kwargs.get('num_edges', 'nlnn')
+    random_seed = kwargs.get('random_seed', 'NULL')
     
     # db_mol will be None if sim not calculated in LOMAP.
     if db_mol is None:
@@ -224,21 +230,21 @@ def Optimize(np_arr, **kwargs):
     n = np_arr.shape[1]
     min_connect = n-1
     # Subtract 1 because ref ligs will be added.
-    max_connect = (n*(n - 1)//2) - 1
+    max_connect = (n*(n - 1)//2) #- 1
     # Calculate edge number selection
     try:
         int(num_edges) == num_edges
         num_edges = num_edges
     except:
-        if num_edges is 'nlnn':
+        if num_edges == 'nlnn':
             num_edges = round(n*np.log(n))
-        elif num_edges is '1n':
+        elif num_edges == '1n':
             num_edges = n
-        elif num_edges is '2n':
+        elif num_edges == '2n':
             num_edges = 2*n
-        elif num_edges is 'min':
+        elif num_edges == 'min':
             num_edges = min_connect
-        elif num_edges is 'max':
+        elif num_edges == 'max':
             num_edges = max_connect
         else:
             raise ValueError(f"Invalid num_edges input. Valid inputs are: "
@@ -248,7 +254,7 @@ def Optimize(np_arr, **kwargs):
     # Design must be fully connected.
     if num_edges < min_connect or num_edges > max_connect:
         print(f"Requested edge number, {num_edges}, is out of bounds. "
-               "Range is [{min_connect}, {max_connect}]")
+               f"Range is [{min_connect}, {max_connect}]")
         # If less than range make min_connect
         if num_edges < min_connect:
             num_edges = min_connect
@@ -270,4 +276,5 @@ def Optimize(np_arr, **kwargs):
         ref_lig = ref_lig_gen(df)
     print("The reference ligand is", ref_lig)
     # Ouput optimal graphs using optimal_design.R.
-    c=py_run_optimization(ref_lig, r_df, r_optim_types, num_edges)
+    optim_graph_df = py_run_optimization(ref_lig, r_df, r_optim_types, num_edges, random_seed)
+    return optim_graph_df
