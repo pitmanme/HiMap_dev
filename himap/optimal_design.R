@@ -12,11 +12,9 @@
 ## Load packages, set ggplot theme, and import data
 require( igraph)
 require( tidyverse)
-#require(compiler)
-#compiler::enableJIT(3)
 
 library(parallel)
-library(profvis)
+#library(profvis)
 library(glue)
 
 # Set ggplot2 theme
@@ -106,20 +104,72 @@ Fedorov.exchange <- function( A.use, W.use, starting.rows, criterion, maxiter = 
   }else if( criterion == 'random'){ # Finds a random design that's also identifiable
     n.pairs <- length( starting.rows[ -which( starting.rows %in% which( rowSums( abs( A.use)) == 1))])
     rand.iter <- 1
+    print('Searching for seed design ...')
     repeat{
       current.rows <- c( sample( (1:nrow( A.use))[-which( rowSums( abs( A.use)) == 1)], n.pairs), which( rowSums( abs( A.use)) == 1))
       inf.mat <- t( A.use[ current.rows,]) %*% W.use[ current.rows, current.rows] %*% A.use[ current.rows,]
-      print(paste0( 'Iteration ', rand.iter, ' to find seed design.'))
+      #print(paste0( 'Iteration ', rand.iter, ' to find seed design.'))
       rand.iter <- rand.iter + 1
       # Edits made here 04/11, test log(det(inf.mat)) instead of det(inf.mat)
       crit_i <- log(det( inf.mat))
       #print(det( inf.mat))
+      
+      # LINE BELOW IS A NEW CHANGE 4/20/23
+      #if( is.finite(crit_i)){
       if( !isTRUE( all.equal(crit_i, -Inf))){
-        print(paste0("Finite log(det(inf.mat)) found, ", crit_i))
+        #print(paste0("Finite log(det(inf.mat)) found, ", crit_i))
         if( class( try( solve( inf.mat), silent = TRUE))[1] != "try-error"){
-          print("Invertible solution found.")
+          print(paste0("Invertible seed design found. Iteration = ", rand.iter, ". Criterion = ", signif(crit_i, 4)))
           break
         }
+      }else if( rand.iter > 1000){
+        # Find a non-random connected seed design.
+        # If it has taken too many iterations to find a random seed design,
+        # make a radial design and add the number of edges needed from highest
+        # weights available.
+        reference.row <- c(which( rowSums( abs( A.use)) == 1))
+        # If there is more than one reference ligand, use the first one.
+        if (length(reference.row) > 1) {
+           reference.row <- reference.row[1]
+        }
+        reference.col <- c(which( A.use[,c(which(A.use[reference.row,] == 1))] != 0))
+        # Get the rows of A that are nonzero in the column of reference.col.
+        radial.rows <- reference.col[reference.col != reference.row]
+
+        # Get extra rows to add if needed:
+        if (length(radial.rows) < n.pairs) { #Find highest weight edges to add.
+          n_nodes <- ncol(A.use)
+          edges.needed <- n.pairs - n_nodes + 1
+
+          # Find the heightest weight rows of W, excluding radial.rows
+          W.considered <- W.use[-c(reference.row, radial.rows), -c(reference.row, radial.rows)]
+          
+          # Get the row numbers from W.use
+          all.cols <- c(1:ncol(W.use))
+          exclude.cols <- c(reference.row, radial.rows)
+          remaining.cols <- all.cols[!(all.cols %in% exclude.cols)]
+
+          # Find the indexes of highest values of W.considered.
+          top.edges.ix <- head( sort(W.considered, decreasing = TRUE, index.return = TRUE)$ix , n = edges.needed)
+
+          # Convert index to column or row.
+          top.cols <- top.edges.ix - floor(top.edges.ix / ncol(W.considered))*ncol(W.considered)
+          top.cols <- replace(top.cols, top.cols==0, ncol(W.considered))
+
+          # top.cols is the index of entries in remaining.cols.
+          top.W.cols = c()
+          for (i in top.cols) {
+            new_element <- remaining.cols[i]
+            top.W.cols[length(top.W.cols) + 1] <- new_element
+          }
+          current.rows <- sort(c(radial.rows, reference.row, top.W.cols))
+          print("Generated seed design from radial map and high weight edges.")
+          break
+        }else{ #output star graph (radial).
+          current.rows <- sort(c(radial.rows, reference.row))
+          print("Generated seed design from radial map.")
+          break
+        } # End of new.
       }
     }
     return(
@@ -144,15 +194,18 @@ Fedorov.exchange <- function( A.use, W.use, starting.rows, criterion, maxiter = 
   repeat{
     # Compute the criterion for the current design
     current.D <- crit.func( A.use[ current.rows,], W.use[ current.rows, current.rows])
+    
+    # Prevent an error that occurs for designs w/ n choose 2 edges.
+    if( length( current.rows) == dim(A.use)[1]) {
+      print("All possible designs have been sampled.")
+      break
+    }
     print(paste0( 'Iteration ', current.iter, ' (criterion = ', signif( current.D, 4), ')'))
-    
+        
     # Find all possible couples of current rows and potential rows
-    
-    # The candidate rows can be currated to remove any rows that will be a column full of 0
     candidate.rows <- setdiff( 1:nrow( A.use), current.rows)
     couples <- expand.grid( current = current.rows, candidate = candidate.rows, D = NA)
     
-    # Goal: replace for loop with something faster, like vectorization
     # Func for making A matrices
     gen_A <- function(val){
       current.design <- A.use[ c(current.rows[-which(current.rows == couples$current[val])], couples$candidate[val]),]
@@ -165,33 +218,19 @@ Fedorov.exchange <- function( A.use, W.use, starting.rows, criterion, maxiter = 
       return(current.weights)
     }
     
-    # Method 2 with mod for lists of mats
-    method_two_mod1 <- function(vals){
-      D <- mapply(crit.func, lapply(vals, gen_A), lapply(vals, gen_W))
-      return(D)
-    }
-    
     # Execute vectorized form
     vals <- 1:nrow( couples); vals
     
     # This parrallel option is parrallel for both mapply and lapply:
-    # Running into a new issue with mcmapply for mc.cores > 1. Process doesn't proceed now, could be computer problem.
     couples$D <- mcmapply(crit.func, mclapply(vals, gen_A, mc.cores = 2), mclapply(vals, gen_W, mc.cores = 2), mc.cores = 1)
-    
-    # This parrallel option is parrallel for mapply:
-    #couples$D <- mcmapply(crit.func, lapply(vals, gen_A), lapply(vals, gen_W), mc.cores = 2)
-    
-    # Not parrallel but faster than original
-    #couples$D <- mapply(crit.func, lapply(vals, gen_A), lapply(vals, gen_W))
-    
+
     # Calculate difference
     couples$D.diff <- couples$D - current.D
-    
+  
     # If no exchanges improve the design, stop.  Otherwise, make the best swap and continue the algorithm
     if( sum( couples$D.diff > 0) == 0){
       break
     } else if( current.iter == maxiter) {
-      # This might be a bug. What I want it to do is give up. Not return garbage below.
       print("The maximum number of iterations occured.")
       break
     }else{
@@ -199,7 +238,6 @@ Fedorov.exchange <- function( A.use, W.use, starting.rows, criterion, maxiter = 
       current.iter <- current.iter + 1
     }
   }
-  
   # Return the optimal design, weight matrix, criteria, and rows
   return(
     list(
@@ -214,20 +252,56 @@ Fedorov.exchange <- function( A.use, W.use, starting.rows, criterion, maxiter = 
 # End optimization statistical engine.
 ################################################################
 
+# Functions to check if optimization can numerically be performed.
+# If not, (ex: scores are all 1.0), return deterministic seed design.
+test_singular_A <- function(design.mat, weight.mat) {
+  result <- tryCatch(
+    {
+      sum( diag( solve( t( design.mat) %*% diag( weight.mat) %*% design.mat)))
+    },
+    error = function(e) {
+      # NULL means that the matrices are exactly singular
+      NULL
+    }
+  )
+  #print(paste0('The result: ', result))
+}
+
+test_singular_D <- function(design.mat, weight.mat) {
+  result <- tryCatch(
+    {
+      det( solve( t( design.mat) %*% diag(weight.mat) %*% design.mat))
+    },
+    error = function(e) {
+      # NULL means that the matrices are exactly singular
+      NULL
+    }
+  )
+  #print(paste0('The result: ', result))
+
+}
+
+
 ################################################################
 # Import scores from python
 ################################################################
 
-run_optimization <- function(ref_lig, dataframe, r_optim_types, num_edges){
-    # ref_lig = reference ligand to use, currenlty must be manually selected
+run_optimization <- function(ref_lig, dataframe, r_optim_types, num_edges, random_seed){
+    # ref_lig = reference ligand to use, currently must be manually selected
     # dataframe  = r dataframe generate from similarity scores
     # optim_type1 and optim_type2 = optimization type such as 'A' and 'D'.
     #                               currently two types are required.
-    
+    # random_seed = if set with an int makes the optimization nondeterministic.
+    #               Default value is 'NULL' which mean no random seed selected.
     # Import atom pair scores
     optim_type1 <- r_optim_types[1]
     optim_type2 <- r_optim_types[2]
     k_numb <- num_edges
+    # Convert default str from python to readable in R.
+    if (random_seed == 'NULL'){
+      random_seed <- NULL
+    }
+    set.seed(random_seed)
     print(paste("Preparing", optim_type1, "optimization"))
     print(paste("Preparing", optim_type2, "optimization"))
 
@@ -239,6 +313,13 @@ run_optimization <- function(ref_lig, dataframe, r_optim_types, num_edges){
       filter( LIGAND_1 != LIGAND_2) %>%
       # Normalize weights.
       mutate( WEIGHT = (SIM^2 - min(SIM)^2)/(max(SIM)^2 - min(SIM)^2))
+      #print("WEIGHT")
+      #print(sim.scores$WEIGHT)
+    
+    # If all scores are equal, normalization produces NaNs. Replace NaN with 1.0.
+    sim.scores <- mutate(sim.scores, WEIGHT = ifelse(is.nan(WEIGHT), 1.0, WEIGHT))
+    #print("WEIGHT")
+    #print(sim.scores$WEIGHT)
     
     ## Find the optimal designs
     # Define the list of ligands
@@ -250,14 +331,19 @@ run_optimization <- function(ref_lig, dataframe, r_optim_types, num_edges){
     for( i in 1:nrow( A.full)){
       A.full[i, t( combn( 1:length( ligand.list), 2))[i,]] <- c( 1, -1)
     }
+    #print('A.full dims is:')
+    #print(dim(A.full))
     print( paste("Number of ligands:", length( ligand.list)))
-    print(paste('The number of chosen edges is', k_numb))
+    print(paste('The number of edges is', k_numb))
     ###############
 
     # Define the A and W matrices for a full design with weights
     # Output array with a 1 at column of reference ligands. Rows: number of ref ligands
     a <- rbind(diag( ncol( A.full))[ which( ligand.list %in% reference.ligand),])
+
     A.use <- rbind( A.full, a)
+    #print('A.use dims is:')
+    #print(dim(A.use))
 
     # Generate array of 2's for length of reference ligands
     ref_weights <- rep(2, length(reference.ligand))
@@ -271,7 +357,17 @@ run_optimization <- function(ref_lig, dataframe, r_optim_types, num_edges){
           pull( WEIGHT)
       }), ref_weights
     ))
-
+    #print('W.use dims in:')
+    #print(dim(W.use))
+    
+    # Print functions
+    #print('The ref_weights are')
+    #print(ref_weights)
+    #print('The weight matrix is')
+    #print(W.use)
+    #print('The A.use')
+    #print(A.use)
+    
     # Generate seed design to optimize.
     starting.rows <- Fedorov.exchange( A.use, W.use, c( 1:k_numb, nrow(A.use)), 'random')$rows
 
@@ -285,23 +381,23 @@ run_optimization <- function(ref_lig, dataframe, r_optim_types, num_edges){
         )
       }) %>% {do.call( "rbind", .)}
      
-    pprv <- profvis({
-      d.opt.new <- Fedorov.exchange( A.use, W.use, starting.rows, optim_type2)$A %>%
-      {.[which( rowSums( .) == 0),]} %>%
-        apply( 1, function(x){
-          tibble(
-            LIGAND_1 = ligand.list[ which( x == 1)],
-            LIGAND_2 = ligand.list[ which( x == -1)]
-          )
-        }) %>% {do.call( "rbind", .)}
-      prof_output = 'rprof.out'
-    })
-    print(pprv)
+   # pprv <- profvis({
+    d.opt.new <- Fedorov.exchange( A.use, W.use, starting.rows, optim_type2)$A %>%
+    {.[which( rowSums( .) == 0),]} %>%
+      apply( 1, function(x){
+        tibble(
+          LIGAND_1 = ligand.list[ which( x == 1)],
+          LIGAND_2 = ligand.list[ which( x == -1)]
+        )
+      }) %>% {do.call( "rbind", .)}
+      #prof_output = 'rprof.out'
+    #})
+    #print(pprv)
     
-    now2 <- Sys.time()
-    pprv_ofile = paste0("timing", format(now2, "_%Y%m%d_%H%M%S"), ".html")
+    #now2 <- Sys.time()
+    #pprv_ofile = paste0("timing", format(now2, "_%Y%m%d_%H%M%S"), ".html")
     #save(pprv, file= pprv_ofile)
-    htmlwidgets::saveWidget(pprv, pprv_ofile)
+    #htmlwidgets::saveWidget(pprv, pprv_ofile)
     
 
     ###################################################################
@@ -337,7 +433,7 @@ run_optimization <- function(ref_lig, dataframe, r_optim_types, num_edges){
         
         # Removed solve from null.inner because det(inverse A) = 1/det(A)
         null.inner =  t( design.mat) %*% diag( null.weight) %*% design.mat
-        weighted.inner =  t( design.mat) %*% diag( sim.weight) %*% design.mat
+        weighted.inner = t( design.mat) %*% diag( sim.weight) %*% design.mat
         
         # This is the hat matrix values, in development.
         # H diags
@@ -346,10 +442,14 @@ run_optimization <- function(ref_lig, dataframe, r_optim_types, num_edges){
         
         # Output critical data dataframe
         data.frame(
-          A = sum( diag( solve( t( design.mat) %*% diag( null.weight) %*% design.mat))),
-          D = det( solve( t( design.mat) %*% diag( null.weight) %*% design.mat))^(1/length( ligand.list)),
-          A.ap = sum( diag( solve( t( design.mat) %*% diag( sim.weight) %*% design.mat))),
-          D.ap = det( solve( t( design.mat) %*% diag( sim.weight) %*% design.mat))^(1/length( ligand.list))
+          A = test_singular_A(design.mat, null.weight),
+          D = (test_singular_D(design.mat, null.weight))^(1/length( ligand.list)),
+          A.ap = test_singular_A(design.mat, sim.weight),
+          D.ap = (test_singular_D(design.mat, sim.weight))^(1/length( ligand.list))
+          #A = sum( diag( solve( t( design.mat) %*% diag( null.weight) %*% design.mat))),
+          #D = det( solve( t( design.mat) %*% diag( null.weight) %*% design.mat))^(1/length( ligand.list)),
+          #A.ap = sum( diag( solve( t( design.mat) %*% diag( sim.weight) %*% design.mat))),
+          #D.ap = det( solve( t( design.mat) %*% diag( sim.weight) %*% design.mat))^(1/length( ligand.list))
           #H =  ((design.mat %*% solve(t(design.mat) %*% diag( sim.weight) %*% design.mat) %*% t(design.mat) %*% diag( sim.weight))),
           #Diag.Hi =  diag(((design.mat %*% solve(t(design.mat) %*% diag( sim.weight) %*% design.mat) %*% t(design.mat) %*% diag( sim.weight)))),
           #Diag.nullHi =  diag(((design.mat %*% solve(t(design.mat) %*% design.mat) %*% t(design.mat))))
@@ -417,6 +517,5 @@ run_optimization <- function(ref_lig, dataframe, r_optim_types, num_edges){
     csv_ofile = paste0("edge_data", format(now, "_%Y%m%d_%H%M%S"), ".csv")
     write.csv(edge.dat,csv_ofile, row.names = FALSE)
     
-    #return(edge.dat)
+    return(edge.dat)
     }
-
