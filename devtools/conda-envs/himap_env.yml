@@ -20,5 +20,5 @@ dependencies:
   - r-profvis
   - kneed
   - pip:
-    - git+https://github.com/pitmanme/HiMap_dev.git@bbc7303cc3de26d03c0775e99e8a05a71c3e50bc
+    - git+https://github.com/pitmanme/HiMap_dev.git@64a61d02a07cf56953a96369c59e511d2b6e63aa
  
