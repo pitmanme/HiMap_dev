@@ -5,7 +5,6 @@
 
 HiMap
 =====
-
 Alchemical free energy calculations hold increasing promise as an aid to drug
 discovery efforts. However, applications of these techniques in discovery
 projects have been relatively few, partly because of the difficulty of planning
@@ -14,7 +13,6 @@ automated algorithm to optimize efficient relative free energy calculations betw
 potential ligands within a substantial of compounds. The optimal module
 generates A and D optimal graphs to reduce uncertainty in FE results for
 RBFE calculations.
-
 
 """
 
@@ -660,6 +658,7 @@ def cluster_interactive(sim_data, ID_list):
     
     # Generate distance data
     data = 1 - sim_data
+    #data = sim_data
     
     # Output distance info to user.
     x, dists = k_dist(data)
@@ -769,14 +768,14 @@ def clusters2optimize(sub_arr, sub_ID, **kwargs):
                         will be set to max.
         
         Outputs:
-            Optimal graph outputs.
+            c = Optimal graph outputs stored as pandas dataframe.
                 
     Example usages:
     himap.clusters2optimize(sub_arr, sub_ID, clusters2optim = 'all', optim_types = ['A', 'D'])
     himap.clusters2optimize(sub_arr, sub_ID)
     '''
     clusters2optim = kwargs.get('clusters2optim', 'all')
-    if clusters2optim is 'all':
+    if clusters2optim == 'all':
         sub_arr_passed = sub_arr
         sub_ID_passed = sub_ID
         if 'ref_ligs' in kwargs:
@@ -784,7 +783,7 @@ def clusters2optimize(sub_arr, sub_ID, **kwargs):
             # Find which ref ligs are in which cluster if passed.
             clusts_w_ref, sub_refs = clusters_w_ref(ref_ligs, sub_ID)
             
-    elif clusters2optim is 'w_ref_lig':
+    elif clusters2optim == 'w_ref_lig':
         if 'ref_ligs' not in kwargs:
             raise ValueError("if clusters='w_ref_lif', you must input ref_ligs kwarg.")
         else:
@@ -823,7 +822,7 @@ def clusters2optimize(sub_arr, sub_ID, **kwargs):
         for i,j in zip(sub_arr_passed, sub_ID_passed):
             n_ar = sub_arr_passed[i]
             sub_ID_list = sub_ID_passed[j]
-            himap.Optimize(n_ar, ID_list = sub_ID_list, **kwargs)
+            c = himap.Optimize(n_ar, ID_list = sub_ID_list, **kwargs)
     else:
         # There are ref_ligs in some or all clusters.
         # If clusters2optim = 'all' or [ints], passed clusters may have ref ligs.
@@ -840,7 +839,8 @@ def clusters2optimize(sub_arr, sub_ID, **kwargs):
             sub_ID_list = sub_ID_passed[k]
             if k in set(clusts_w_ref):
                 # If the cluster has a reference ligand, optimize with ref_lig.
-                himap.Optimize(n_ar, ID_list = sub_ID_list, ref_lig = sub_refs[k], **kwargs)
+                c = himap.Optimize(n_ar, ID_list = sub_ID_list, ref_lig = sub_refs[k], **kwargs)
             else:
                 # If the cluster has no reference ligand, optimize.
-                himap.Optimize(n_ar, ID_list = sub_ID_list, **kwargs)
+                c = himap.Optimize(n_ar, ID_list = sub_ID_list, **kwargs)
+    return c
