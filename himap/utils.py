@@ -4,14 +4,13 @@
 
 """
 
-LOMAP: Maximum Common Subgraph and scoring calculations
+HiMap
 =====
-
 Alchemical free energy calculations hold increasing promise as an aid to drug
 discovery efforts. However, applications of these techniques in discovery
 projects have been relatively few, partly because of the difficulty of planning
-and setting up calculations. The Lead Optimization Mapper (LOMAP) is an
-automated algorithm to plan efficient relative free energy calculations between
+and setting up calculations. The High Information Mapper (HiMap) is an
+automated algorithm to optimize efficient relative free energy calculations between
 potential ligands within a substantial of compounds. The optimal module
 generates A and D optimal graphs to reduce uncertainty in FE results for
 RBFE calculations.
