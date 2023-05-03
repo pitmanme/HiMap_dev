@@ -33,6 +33,7 @@ Requirements
 * kneed=0.7.0
 * scikit-learn=0.23.2
 * scipy
+* numpy=1.23
 
 
 Authors
