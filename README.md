@@ -60,7 +60,7 @@ To install HiMap with LOMAP included, build the conda environment and install fr
 
 with:
 
-`conda env create -f himap_env.yml python=3.8`
+`conda env create -f himap_env.yml`
 
 
 Usage
