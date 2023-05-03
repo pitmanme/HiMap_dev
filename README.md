@@ -31,9 +31,9 @@ Requirements
 * R
 * rpy2=3.4.5
 * kneed=0.7.0
-* scikit-learn=0.23.2
+* scikit-learn
 * scipy
-* numpy=1.23
+* numpy<1.24
 
 
 Authors
