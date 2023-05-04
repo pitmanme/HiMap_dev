@@ -1,0 +1,25 @@
+name: himap_env
+channels:
+  - conda-forge
+  - omnia
+  - defaults
+dependencies:
+  - numpy<1.24
+  - scikit-learn
+  - pandas=1.1.5
+  - pytest
+  - scipy
+  - lomap2
+  - matplotlib
+  - rdkit
+  - networkx
+  - pygraphviz
+  - rpy2=3.4.5
+  - python-igraph
+  - r-tidyverse=1.3.1=r40hc72bb7e_0
+  - r-igraph=1.2.9=r40hc81bdb1_0
+  - r-reshape2
+  - kneed=0.7.0
+  - pip:
+    - git+https://github.com/pitmanme/HiMap_dev.git@64a61d02a07cf56953a96369c59e511d2b6e63aa
+ 

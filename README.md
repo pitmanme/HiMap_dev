@@ -24,8 +24,8 @@ energy perturbation networks.
 
 Requirements
 -------
-* RDKit Release > 2021
-* NetworkX
+
+* Lomap2
 * Matplotlib 
 * python >= 3.8
 * R
@@ -39,17 +39,9 @@ Requirements
 Authors
 -------
 
-Contact for HiMap:
 * Mary Pitman <mpitman@uci.edu>
 * David Mobley <dmobley@uci.edu>
     
-Predecessor authors of LOMAP:  
-* Gaetano Calabro' <gcalabro@uci.edu>
-* Mark Mackey
-* Lester Hedges
-* Antonia S J S Mey
-* Jenke Scheen
-* David Mobley
 
 Installation
 -----
@@ -70,15 +62,7 @@ Usage
     `python examples/example_optimize.py`
 * To read in scores and optimize \
     `python examples/example_optimize_read_data.py`
-* For a basic LOMAP run without optimization \
-    `python examples/example.py`
-* For generating radial graphs with a hub \
-    `python examples/example_radial.py`
 
-#### To run LOMAP without optimization, as a commandline tool:
-`
-lomap test/basic/
-`
 
 
 #### If you would rather use the API directly:
@@ -162,55 +146,6 @@ ref_ligs = ['mol_0', 'mol_1', 'mol_2', 'mol_3', 'mol_4']
 himap.clusters2optimize(sub_arr, sub_ID, clusters2optim = selected_clusters,
                         ref_ligs=ref_ligs, num_edges = '2n', optim_types = ['A', 'D']
                         )
-```
-
-
-* To generate original LOMAP designs, try:
-
-```python
-import lomap
-
-# Generate the molecule database starting from a directory containing .mol2 files
-
-db_mol = lomap.DBMolecules("python string pointing to a directory with mol2 files", output=True)
-
-    #More graphing options:
-    # Use the complete radial graph option. The ligand with the most structural similarity to all of the others will be picked as the 'lead compounds' and used as the central compound.
-    db_mol = lomap.DBMolecules("python string pointing to a directory with mol2 files", output=True, radial=True)
-
-    # Use a radial graph with a manually specified hub compound
-    db_mol = lomap.DBMolecules("python string pointing to a directory with mol2 files", output=True, radial=True, hub=filename.mol2)
-
-    # Use a radial graph with a manually specified hub compound and fast graphing option
-    #the fast graphing option create the initial graph by connecting the hub ligand with the possible surrounding ligands and add surrounding edges based on the similarities accoss surrounding nodes
-    db_mol = lomap.DBMolecules("python string pointing to a directory with mol2 files", output=True, radial=True, hub=filename.mol2, fast=True)
-
-# Calculate the similarity matrix betweeen the database molecules. Two molecules are generated
-# related to the scrict rule and loose rule 
-
-strict, loose = db_mol.build_matrices()
-
-# Generate the NetworkX graph and output the results
-nx_graph = db_mol.build_graph() 
-
-
-# Calculate the Maximum Common Subgraph (MCS) between 
-# the first two molecules in the molecule database 
-# ignoring hydrogens and depicting the mapping in a file
-    
-MC = lomap.MCS.getMapping(db_mol[0].getMolecule(), db_mol[1].getMolecule(), hydrogens=False, fname='mcs.png')
-
-
-# Alchemical transformation are usually performed between molecules with
-# the same charges. However, it is possible to allow this transformation
-# manually setting the electrostatic score for the whole set of molecules 
-# producing a connected graph. The electrostatic scrore must be in the 
-# range [0,1]
-
-
-db_mol = lomap.DBMolecules("python string pointing to a directory with mol2 files", output=True, ecrscore=0.1)
-strict, loose = db_mol.build_matrices()
-nx_graph = db_mol.build_graph() 
 ```
 
 Troubleshooting
