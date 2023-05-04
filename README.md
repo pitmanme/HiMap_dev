@@ -148,7 +148,3 @@ himap.clusters2optimize(sub_arr, sub_ID, clusters2optim = selected_clusters,
                         )
 ```
 
-Troubleshooting
------
-* Why is optimization not finding a random seed design? \
-Check that similarity scores are not zero, nearly zero, or in large part near zero. If the similarity scores are non-zero but very dissimilar, try decreasing the neighbor distance cutoff value (epsilon) selected during clustering. If the similarity scores are zero or near zero, this may be an example of a rare limitation, currently in development, in the LOMAP similarity scores. Check that the ligands are indeed very dissimilar. If they are not, consider using an alternate similarity metric for the time being.
