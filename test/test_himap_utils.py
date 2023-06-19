@@ -19,9 +19,9 @@ pytest dir_of_test_file/test_*.py
 '''
 
 def _rf(fn):
-    # get path to file from inside lomap installation
-    f = pkg_resources.resource_filename('lomap', 'test/' + fn)
-    return f.replace('/lomap/test', '/test')
+    # get path to file from inside himap installation
+    f = pkg_resources.resource_filename('himap', 'test/' + fn)
+    return f.replace('/himap/test', '/test')
 
 
 def test_clean_NaN():

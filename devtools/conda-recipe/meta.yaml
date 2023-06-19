@@ -1,6 +1,6 @@
 package:
-  name: lomap
-  version: "0.0.0"
+  name: himap
+  version: "0.0.2"
 
 source:
   path: ../..
@@ -40,14 +40,14 @@ test:
   requires:
     - nose
   imports:
-    - lomap
+    - himap
   commands:
-   - which lomap
-   - lomap -h
+   - which himap
+   - himap -h
    - nosetests -v
    
 about:
-  home: https://github.com/MobleyLab/Lomap
+  home: https://github.com/MobleyLab/Himap
   license: MIT
   license_file: LICENCE.txt
   summary: Alchemical free-energy calculations planner

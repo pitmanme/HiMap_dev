@@ -182,7 +182,7 @@ def rand_sim_scores(N):
         Returns:
             b_symm: symmetric array
     '''
-    b = np.random.random_integers(0,5,size=(N,N))
+    b = np.random.randint(0,5,size=(N,N))
     # Symmetrize
     b_symm = (b + b.T)/2
     return b_symm

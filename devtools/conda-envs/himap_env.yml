@@ -7,7 +7,9 @@ dependencies:
   - numpy<1.24
   - scikit-learn
   - pandas=1.1.5
+  - pytest
   - scipy
+  - lomap2
   - matplotlib
   - rdkit
   - networkx
